@@ -179,14 +179,18 @@ class Simulation(object):
         df_sent_messages = pd.DataFrame(self.Log.sent_messages)
         df_received_messages = pd.DataFrame(self.Log.received_messages)
         df_dummies_messages = pd.DataFrame(self.Log.dummy_messages)
+        df_target_messages = pd.DataFrame(self.Log.target_messages)
 
         if self.logging:
             df_sent_messages.to_csv(f'{logDir}SentMessages.csv')
             df_received_messages.to_csv(f'{logDir}ReceivedMessages.csv')
             df_dummies_messages.to_csv(f'{logDir}DummyMessages.csv')
+            df_target_messages.to_csv(f'{logDir}TargetMessages.csv')
         else:
             pass
 
+        send_times = df_target_messages['MessageTimeLeft'].values
+        message_ids = df_target_messages['MessageID'].values
         entropy = []
         for i in range(0, self.n_targets):
             entropy.append(0.0)
@@ -196,7 +200,7 @@ class Simulation(object):
                 if tableProb[m][j] != 0:
                     entropy[j] += - tableProb[m][j] * np.log2(tableProb[m][j])
 
-        dict_entropy = {'Entropy': entropy}
+        dict_entropy = {'Entropy': entropy, 'SendTime': send_times, 'MessageID': message_ids}
         df_entropy = pd.DataFrame(dict_entropy)
         df_entropy.to_csv(f'{logDir}{self.n_layers}layers_{self.n_mixes_per_layer}mixes_player_Entropy.csv')
 
