@@ -4,6 +4,8 @@ class Log:
         self.sent_messages = {"MessageID": [], "MessageType": [], "MessageTimeLeft" :[], "MessageDelay": [], "MessageRoute" :[]}
         self.received_messages = {"MessageID": [], "MessageType": [], "MessageTimeLeft" :[],"MessageTimeReceived":[], "MessageDelay": [], "MessageRoute" :[],"MessageTarget" : [] }
         self.dummy_messages = {"DroppingNode":[],"DummyID": [], "DummyType": [], "DummyTimeLeft" :[], "DummyDelay": [], "DummyRoute" :[], "DummyPr":[]}
+        self.target_messages = {"MessageID": [], "MessageTimeLeft": []}
+
     def dummies_dropped_end_link(self, dummy, dropping_node):
         self.dummy_messages["DroppingNode"].append(dropping_node)
         self.dummy_messages["DummyID"].append(dummy.id)
@@ -28,3 +30,7 @@ class Log:
         self.received_messages["MessageDelay"].append(msg.delays)
         self.received_messages["MessageRoute"].append(msg.route)
         self.received_messages["MessageTarget"].append(msg.pr_target)
+
+    def target_messages_f(self, msg):
+        self.target_messages["MessageID"].append(msg.id)
+        self.target_messages["MessageTimeLeft"].append(msg.time_left)

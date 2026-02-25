@@ -30,6 +30,7 @@ class Attacker:
                         msg.pr_target[i] = float(0.0)
                 msg.target_bool = True
                 self.targetMessage = msg
+                self.simulation.Log.target_messages_f(msg)
                 self.n_target_chosen_attacker += 1
                 if self.n_target_chosen_attacker == 1:
                     self.time_stable = self.env.now
