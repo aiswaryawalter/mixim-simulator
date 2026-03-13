@@ -194,12 +194,16 @@ class Simulation(object):
         entropy = []
         for i in range(0, self.n_targets):
             entropy.append(0.0)
+        column_sums = [0.0 for _ in range(self.n_targets)]
+
         tableProb = df_received_messages['MessageTarget'].to_numpy(copy=True)
         for j in range(0, self.n_targets):
             for m in range(len(tableProb)):
+                p = float(tableProb[m][j])
+                column_sums[j] += p
                 if tableProb[m][j] != 0:
                     entropy[j] += - tableProb[m][j] * np.log2(tableProb[m][j])
-
+        print("column_sums:", column_sums)
         dict_entropy = {'Entropy': entropy, 'SendTime': send_times, 'MessageID': message_ids}
         df_entropy = pd.DataFrame(dict_entropy)
         df_entropy.to_csv(f'{logDir}{self.n_layers}layers_{self.n_mixes_per_layer}mixes_player_Entropy.csv')

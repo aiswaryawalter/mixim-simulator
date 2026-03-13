@@ -54,6 +54,7 @@ class PoissonMix(Mix):
             self.env.process(self.send_msg(msg))
         elif msg.type == 'Dummy':
             if self.link_based_dummies:
+                print(f'PR Target of DUMMY  {msg.pr_target} | Pool size {len(self.pool)}')
                 self.drop_dummies(msg)
             elif self.multiple_hop_dummies:
                 if self.layer == self.simulation.n_layers:
@@ -61,9 +62,14 @@ class PoissonMix(Mix):
                 elif self.layer != self.simulation.n_layers:
                     self.pool.append(msg)
                     self.env.process(self.send_msg(msg))
+        print(f'| Pool size {len(self.pool)}')
+        print(f'| PMix {self.Pmix}')
+        print(f'| Layer {self.layer}')
     def send_msg(self, msg):
         yield self.env.timeout(msg.delays[self.layer])
         self.update_probabilities(msg, len(self.pool))
+        if msg.type == 'Dummy':
+            print(f'PR Target of DUMMY after leaving the mix {msg.pr_target} | Pool size {len(self.pool)} | Layer {self.layer} | PMix {self.Pmix}')
         next_hop_index = msg.route[msg.next_hop_index]
         self.pool.remove(msg)
         self.env.process(self.simulation.attacker.relay(msg, next_hop_index))
@@ -73,6 +79,8 @@ class PoissonMix(Mix):
             for j in range(0, self.n_targets):
                 msg.pr_target[j] = self.Pmix[j] / pool_size
                 self.Pmix[j] = self.Pmix[j] - msg.pr_target[j]
+            print(f'PMix after update prob {self.Pmix} | Layer {self.layer}')
+            print(f'PR Target of DUMMY after update prob {msg.pr_target} | Pool size {len(self.pool)} | Layer {self.layer}')
 
     def drop_dummies(self, msg):
         if self.layer == self.simulation.n_layers:
