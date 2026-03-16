@@ -39,8 +39,9 @@ class Client:
         delays = [delay_client]
         pr_target = []
 
-        for i in range(0, self.n_targets):
-            pr_target.append(float(0.0))
+        # to target-fixed-msgs
+        # for i in range(0, self.n_targets):
+        #     pr_target.append(float(0.0))
         for layer in range(1, self.simulation.n_layers+1):
             delay_per_mix = exponential(self.mu)
             delays.append(delay_per_mix)
@@ -69,7 +70,7 @@ class Client:
                     node = choice(self.all_mixes)
                 route.append(node)
                 route_ids.append(node.id)
-
+                print(f"==>> route: {route}")
             elif self.simulation.routing == 'hopbyhop' and layer != 1:
                 route.append(None)
                 route_ids.append(None)
@@ -81,7 +82,15 @@ class Client:
                     route.append(node)
                     route_ids.append((node.id))
         delays += [0]
-        receiver = sample(list(self.other_clients), k=1)[0]
+        # bug
+        # receiver = sample(list(self.other_clients), k=1)[0]
+        # fix client-dummy
+        if message_type == 'ClientDummy':
+            receiver = self
+        else:
+            receiver = sample(list(self.other_clients), k=1)[0]
+        print(f"[Route Delays]: {delays}")
+        print(f"==>> receiver: {receiver} at time {self.env.now}")
         route += [receiver]
         route_ids += [receiver.id]
 
@@ -99,6 +108,11 @@ class Client:
 
     def receive_message(self, message):
         message.timeReceived = self.env.now
+        # fix client-dummy
+        if message.type == 'ClientDummy':
+            # Log ClientDummy when it reaches destination
+            self.log.dummies_dropped_end_link(message, self.id)
+            print(f'ClientDummy {message.id} dropped at destination Client {self.id} at time {self.env.now}')
         self.log.received_messages_f(message)
         if message.target_bool and self.simulation.printing:
             print(f'Target message arrived at destination Client at time {self.env.now}')

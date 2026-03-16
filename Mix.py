@@ -38,8 +38,13 @@ class Mix:
         newstop = sample(list(self.simulation.clientsSet), k=1)[0]
         route += [newstop]
         pr_target = []
-        for j in range(0, self.n_targets):
+        # to target-all-msgs
+        total_messages = len(self.simulation.Log.sent_messages["MessageID"])
+        while len(pr_target) < total_messages:
             pr_target.append(float(0.0))
+        # to target-fixed-msgs
+        # for j in range(0, self.n_targets):
+        #     pr_target.append(float(0.0))
         new_dummy = Message(dummy_id, 'Dummy', self, route, delays, pr_target, False)
 
         new_dummy.next_hop_index = self.layer + 1

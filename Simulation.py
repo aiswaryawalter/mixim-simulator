@@ -59,6 +59,7 @@ class Simulation(object):
         time_stable = ((1 / self.rate_client) / self.n_layers) * self.mu + 2
         if self.mix_type == 'poisson':
             self.n_targets = int(((self.SimDuration - time_stable) ) / 2)
+            print(f"n_targets={self.n_targets}")
         else:
             self.n_targets = int((self.SimDuration - self.flush_timeout - 1) / 4)
         self.network = Network(self.mix_type, self.n_layers, self.n_mixes_per_layer, self.corrupt,
@@ -82,6 +83,7 @@ class Simulation(object):
         self.numberrounds = []
 
     def set_stable_mix(self, index):
+        print(f"[{self.env.now}] Entered set_stable_mix for index={index}")
         if self.mix_type == 'pool':
             yield self.env.timeout(10)
             self.startAttack = True
@@ -92,6 +94,8 @@ class Simulation(object):
         if all(self.stableMixL1):
             yield self.env.timeout(2)
             self.startAttack = True
+        print(f"[{self.env.now}] set_stable_mix done => startAttack={self.startAttack}")
+
 
     def set_stable_chain(self, position):
         if self.mix_type == 'pool':
@@ -179,33 +183,66 @@ class Simulation(object):
         df_sent_messages = pd.DataFrame(self.Log.sent_messages)
         df_received_messages = pd.DataFrame(self.Log.received_messages)
         df_dummies_messages = pd.DataFrame(self.Log.dummy_messages)
-        df_target_messages = pd.DataFrame(self.Log.target_messages)
+        df_targets = pd.DataFrame(self.Log.target_messages)
 
         if self.logging:
             df_sent_messages.to_csv(f'{logDir}SentMessages.csv')
             df_received_messages.to_csv(f'{logDir}ReceivedMessages.csv')
             df_dummies_messages.to_csv(f'{logDir}DummyMessages.csv')
-            df_target_messages.to_csv(f'{logDir}TargetMessages.csv')
+            df_targets.to_csv(f'{logDir}{self.n_layers}layers_{self.n_mixes_per_layer}mixes_player_Targets.csv', index=False)
         else:
             pass
 
-        send_times = df_target_messages['MessageTimeLeft'].values
-        message_ids = df_target_messages['MessageID'].values
         entropy = []
-        for i in range(0, self.n_targets):
+        total_msgs = len(self.Log.received_messages["MessageID"])
+        # to target-fixed-msgs
+        # for i in range(0, self.n_targets):
+        for i in range(0, total_msgs):
             entropy.append(0.0)
-        column_sums = [0.0 for _ in range(self.n_targets)]
+        # column_sums = [0.0 for _ in range(self.n_targets)]
 
         tableProb = df_received_messages['MessageTarget'].to_numpy(copy=True)
-        for j in range(0, self.n_targets):
-            for m in range(len(tableProb)):
-                p = float(tableProb[m][j])
-                column_sums[j] += p
-                if tableProb[m][j] != 0:
-                    entropy[j] += - tableProb[m][j] * np.log2(tableProb[m][j])
-        print("column_sums:", column_sums)
-        dict_entropy = {'Entropy': entropy, 'SendTime': send_times, 'MessageID': message_ids}
+        # to target-fixed-msgs
+        # for j in range(0, self.n_targets):
+        #     for m in range(len(tableProb)):
+        #         p = float(tableProb[m][j])
+        #         column_sums[j] += p
+        #         if tableProb[m][j] != 0:
+        #             entropy[j] += - tableProb[m][j] * np.log2(tableProb[m][j])
+        # print("column_sums:", column_sums)
+        for m in range(len(tableProb)):
+            if len(tableProb[m]) < total_msgs:
+                # Extend the row with zeros
+                tableProb[m] = list(tableProb[m]) + [0.0] * (total_msgs - len(tableProb[m]))
+        
+        # for j in range(0, total_msgs):
+        #     for m in range(len(tableProb)):
+        #         if tableProb[m][j] != 0:
+        #             entropy[j] += - tableProb[m][j] * np.log2(tableProb[m][j])
+
+        # to target-all-msgs
+        # to compute entropy row-wise (for each message) instead of column-wise (for each target)
+        for m in range(len(tableProb)):
+            row = np.array(tableProb[m], dtype=float)
+            row_sum = row.sum()
+            print(f"Row sum for row {m}: {row_sum}")
+
+            if np.isclose(row_sum, 1.0, atol=0.3):
+                row_entropy = 0.0
+                for p in row:
+                    if p != 0:
+                        row_entropy += -p * np.log2(p)
+                print(f"Entropy of {m}: {row_entropy}")
+                entropy[m] = row_entropy
+            else:
+                print(f"Entropy of {m}: 0.0 (row sum is not 1.0)")
+                entropy[m] = 0.0 
+
+  
+        dict_entropy = {'Entropy': entropy}
         df_entropy = pd.DataFrame(dict_entropy)
+        df_entropy['MessageID'] = df_received_messages['MessageID'].to_numpy(copy=True)
+        df_entropy['TimeLeft'] = df_received_messages['MessageTimeLeft'].to_numpy(copy=True)
         df_entropy.to_csv(f'{logDir}{self.n_layers}layers_{self.n_mixes_per_layer}mixes_player_Entropy.csv')
 
         entropy_mean = np.mean(entropy)

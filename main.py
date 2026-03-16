@@ -27,6 +27,10 @@ def main(rate):
     n_cascade = int(config['TOPOLOGY']['n_cascades'])
 
     mu = (int(config['TOPOLOGY']['E2E']) - (n_layer + 1)*0.05)/n_layer
+    # \\mu = 0.13 for stratified and mu = 0.9 for free route
+
+    # mu = float(config['MIXING']['mu'])
+    print(f"mu = {mu}")
     threshold = int(config['MIXING']['threshold'])
     flush_percent = float(config['MIXING']['flush_percent'])
     timeout = float(config['MIXING']['timeout'])
