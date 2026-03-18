@@ -15,6 +15,7 @@ OUT_DIR = ROOT / "files"
 
 N_LAYERS = 3
 MIXES_PER_LAYER = [3, 4, 5, 6, 7, 8, 9, 10]
+STOP_REAL_MSGS_PERCENTS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20]
 
 SCENARIOS = {
     "client_dummies": {
@@ -65,12 +66,12 @@ def copy_if_exists(src: Path, dst: Path) -> None:
         shutil.copy2(src, dst)
 
 
-def snapshot_outputs(scenario: str, n_layers: int, mixes: int) -> dict[str, str]:
+def snapshot_outputs(scenario: str, n_layers: int, mixes: int, stop_pct: int) -> dict[str, str]:
     """
     Copy generated Logs/* files into files/ with unique names.
     Returns dict of copied output paths (as strings).
     """
-    prefix = f"{scenario}_L{n_layers}_M{mixes}"
+    prefix = f"{scenario}_L{n_layers}_M{mixes}_Stop{stop_pct}"
 
     entropy_src = LOGS_DIR / f"{n_layers}layers_{mixes}mixes_player_Entropy.csv"
     targets_src = LOGS_DIR / f"{n_layers}layers_{mixes}mixes_player_Targets.csv"
@@ -110,36 +111,41 @@ def main() -> None:
     try:
         for mixes in MIXES_PER_LAYER:
             for scenario_name, flags in SCENARIOS.items():
-                cfg = load_config()
+                for stop_pct in STOP_REAL_MSGS_PERCENTS:
+                    cfg = load_config()
 
-                cfg["TOPOLOGY"]["n_layers"] = str(N_LAYERS)
-                cfg["TOPOLOGY"]["l_mixes_per_layer"] = str(mixes)
+                    cfg["TOPOLOGY"]["n_layers"] = str(N_LAYERS)
+                    cfg["TOPOLOGY"]["l_mixes_per_layer"] = str(mixes)
 
-                cfg["DUMMIES"]["client_dummies"] = bool_str(flags["client_dummies"])
-                cfg["DUMMIES"]["link_based_dummies"] = bool_str(flags["link_based_dummies"])
-                cfg["DUMMIES"]["multiple_hop_dummies"] = bool_str(flags["multiple_hop_dummies"])
+                    cfg["DUMMIES"]["client_dummies"] = bool_str(flags["client_dummies"])
+                    cfg["DUMMIES"]["link_based_dummies"] = bool_str(flags["link_based_dummies"])
+                    cfg["DUMMIES"]["multiple_hop_dummies"] = bool_str(flags["multiple_hop_dummies"])
 
-                write_config(cfg)
+                    cfg["MIXING"]["stop_real_msgs_percent"] = str(stop_pct)
 
-                print(
-                    f"Running scenario={scenario_name}, "
-                    f"n_layers={N_LAYERS}, l_mixes_per_layer={mixes}, "
-                    f"flags={flags}"
-                )
-                run_main()
+                    write_config(cfg)
 
-                outputs = snapshot_outputs(scenario_name, N_LAYERS, mixes)
+                    print(
+                        f"Running scenario={scenario_name}, "
+                        f"n_layers={N_LAYERS}, l_mixes_per_layer={mixes}, "
+                        f"stop_real_msgs_percent={stop_pct}, "
+                        f"flags={flags}"
+                    )
+                    run_main()
 
-                row = {
-                    "scenario": scenario_name,
-                    "n_layers": str(N_LAYERS),
-                    "l_mixes_per_layer": str(mixes),
-                    "client_dummies": bool_str(flags["client_dummies"]),
-                    "link_based_dummies": bool_str(flags["link_based_dummies"]),
-                    "multiple_hop_dummies": bool_str(flags["multiple_hop_dummies"]),
-                    **outputs,
-                }
-                manifest_rows.append(row)
+                    outputs = snapshot_outputs(scenario_name, N_LAYERS, mixes, stop_pct)
+
+                    row = {
+                        "scenario": scenario_name,
+                        "n_layers": str(N_LAYERS),
+                        "l_mixes_per_layer": str(mixes),
+                        "stop_real_msgs_percent": str(stop_pct),
+                        "client_dummies": bool_str(flags["client_dummies"]),
+                        "link_based_dummies": bool_str(flags["link_based_dummies"]),
+                        "multiple_hop_dummies": bool_str(flags["multiple_hop_dummies"]),
+                        **outputs,
+                    }
+                    manifest_rows.append(row)
 
     finally:
         # Always restore original config file
@@ -153,6 +159,7 @@ def main() -> None:
                 "scenario",
                 "n_layers",
                 "l_mixes_per_layer",
+                "stop_real_msgs_percent",
                 "client_dummies",
                 "link_based_dummies",
                 "multiple_hop_dummies",

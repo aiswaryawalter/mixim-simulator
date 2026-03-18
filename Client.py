@@ -122,8 +122,18 @@ class Client:
 
     def send_message(self, message_type, rate_client):
         while True:
+            # Stop sending new real messages after the cutoff time, but allow existing messages to continue through the system
+            if message_type == 'Real' and self.env.now >= self.simulation.real_msg_cutoff_time:
+                print(f'Stop sending new real messages from Client {self.id} at time {self.env.now}')
+                break
             message, sending_time = self.create_message(message_type, rate_client)
             yield self.env.timeout(sending_time)
+
+            # Stop sending new real messages after the cutoff time, but allow existing messages to continue through the system
+            if message_type == 'Real' and self.env.now >= self.simulation.real_msg_cutoff_time:
+                print(f'Stop sending new real messages from Client {self.id} at time {self.env.now}')
+                break
+
             message.time_left = self.env.now
             self.log.sent_messages_f(message)
             self.env.process(self.simulation.attacker.relay(message, message.route[1]))

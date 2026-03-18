@@ -13,22 +13,40 @@ PLOTS_DIR = FILES_DIR / "plots"
 
 # Expected from runner script
 SCENARIO_ORDER = ["baseline", "client_dummies", "link_based_dummies", "multiple_hop_dummies"]
-COLORS = {
+STOP_PERCENTS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20]
+
+SCENARIO_COLORS = {
     "baseline": "#1f77b4",
     "client_dummies": "#2ca02c",
     "link_based_dummies": "#ff7f0e",
     "multiple_hop_dummies": "#d62728",
 }
 
+# Linestyles for different stop percentages
+STOP_LINESTYLES = {
+    1: "-",
+    2: "-",
+    3: "-",
+    4: "-",
+    5: "-",
+    6: "-",
+    7: "-",
+    8: "-",
+    9: "-",
+    10: "-",
+    20: "--",
+}
 
-def parse_name(path: Path) -> tuple[str, int] | None:
-    # e.g. baseline_L3_M5_Entropy.csv
-    m = re.match(r"(.+)_L(\d+)_M(\d+)_Entropy\.csv$", path.name)
+
+def parse_name(path: Path) -> tuple[str, int, int] | None:
+    # e.g. baseline_L3_M5_Stop10_Entropy.csv
+    m = re.match(r"(.+)_L(\d+)_M(\d+)_Stop(\d+)_Entropy\.csv$", path.name)
     if not m:
         return None
     scenario = m.group(1)
     mixes = int(m.group(3))
-    return scenario, mixes
+    stop_pct = int(m.group(4))
+    return scenario, mixes, stop_pct
 
 
 def load_entropy_with_time(entropy_file: Path) -> pd.DataFrame:
@@ -68,66 +86,118 @@ def main() -> None:
     if not entropy_files:
         raise FileNotFoundError(f"No *_Entropy.csv files found in {FILES_DIR}")
 
-    grouped: dict[int, dict[str, Path]] = {}
+    # Group by (mixes, scenario, stop_pct)
+    grouped: dict[tuple[int, str], dict[int, Path]] = {}
     for f in entropy_files:
         parsed = parse_name(f)
         if not parsed:
             continue
-        scenario, mixes = parsed
-        grouped.setdefault(mixes, {})[scenario] = f
+        scenario, mixes, stop_pct = parsed
+        key = (mixes, scenario)
+        grouped.setdefault(key, {})[stop_pct] = f
 
     if not grouped:
-        raise RuntimeError("No files matched expected naming pattern *_L*_M*_Entropy.csv")
+        raise RuntimeError("No files matched expected naming pattern *_L*_M*_Stop*_Entropy.csv")
 
-    mixes_values = sorted(grouped.keys())
+    # Plot 1: Entropy progression for each (mixes, scenario) combo, colored by stop%
+    print("Generating entropy progression plots grouped by mixes and scenario...")
+    mixes_values = sorted(set(k[0] for k in grouped.keys()))
+    scenarios = SCENARIO_ORDER
 
-    # 2x4 layout for mixes 3..10
-    fig, axes = plt.subplots(2, 4, figsize=(22, 10), sharey=True)
-    axes = axes.flatten()
+    fig, axes = plt.subplots(len(scenarios), len(mixes_values), figsize=(24, 16))
+    if len(scenarios) == 1:
+        axes = axes.reshape(1, -1)
+    if len(mixes_values) == 1:
+        axes = axes.reshape(-1, 1)
 
-    for idx, mixes in enumerate(mixes_values):
-        ax = axes[idx]
-        present_scenarios = grouped[mixes]
+    for s_idx, scenario in enumerate(scenarios):
+        for m_idx, mixes in enumerate(mixes_values):
+            ax = axes[s_idx, m_idx]
+            key = (mixes, scenario)
 
-        for scenario in SCENARIO_ORDER:
-            if scenario not in present_scenarios:
+            if key not in grouped:
+                ax.text(0.5, 0.5, "No data", ha="center", va="center", transform=ax.transAxes)
+                ax.set_title(f"{scenario} / M={mixes}")
                 continue
 
-            path = present_scenarios[scenario]
-            df = load_entropy_with_time(path)
-            df = df.dropna(subset=["send_time", "Entropy"]).sort_values("send_time")
+            stop_files = grouped[key]
+            for stop_pct in sorted(stop_files.keys()):
+                path = stop_files[stop_pct]
+                try:
+                    df = load_entropy_with_time(path)
+                    df = df.dropna(subset=["send_time", "Entropy"]).sort_values("send_time")
+                    df["EntropySmoothed"] = df["Entropy"].rolling(window=25, min_periods=1).mean()
 
-            # Optional smoothing to make progression easier to see
-            df["EntropySmoothed"] = df["Entropy"].rolling(window=25, min_periods=1).mean()
+                    ax.plot(
+                        df["send_time"],
+                        df["EntropySmoothed"],
+                        label=f"Stop {stop_pct}%",
+                        alpha=0.8,
+                        linewidth=1.5,
+                        linestyle=STOP_LINESTYLES.get(stop_pct, "-"),
+                    )
+                except Exception as e:
+                    print(f"Warning: Failed to load {path}: {e}")
 
-            ax.plot(
-                df["send_time"],
-                df["EntropySmoothed"],
-                label=scenario,
-                color=COLORS.get(scenario, None),
-                linewidth=1.8,
-                alpha=0.95,
-            )
+            ax.set_title(f"{scenario} / M={mixes}")
+            ax.set_xlabel("Message sent time")
+            ax.set_ylabel("Entropy")
+            ax.grid(True, alpha=0.25)
+            ax.legend(fontsize=8, loc="best")
 
-        ax.set_title(f"l_mixes_per_layer = {mixes}")
-        ax.set_xlabel("Message sent time")
-        ax.set_ylabel("Entropy")
-        ax.grid(True, alpha=0.25)
+    fig.suptitle("Entropy progression vs. stop_real_msgs_percent", y=0.995, fontsize=14)
+    fig.tight_layout()
 
-    # Hide unused axes if any
-    for j in range(len(mixes_values), len(axes)):
-        axes[j].axis("off")
+    out_path = PLOTS_DIR / "entropy_vs_stop_percent.png"
+    fig.savefig(out_path, dpi=150)
+    print(f"Saved plot: {out_path}")
 
-    # Single legend for whole figure
-    handles, labels = axes[0].get_legend_handles_labels()
-    if handles:
-        fig.legend(handles, labels, loc="upper center", ncol=4, frameon=False)
+    # Plot 2: Heatmap comparing entropy across mixes for each (scenario, stop%)
+    print("Generating entropy heatmap across scenarios...")
+    fig, axes = plt.subplots(1, len(STOP_PERCENTS), figsize=(28, 4))
+    if len(STOP_PERCENTS) == 1:
+        axes = [axes]
 
-    fig.suptitle("Entropy progression over message sent time", y=0.98, fontsize=14)
-    fig.tight_layout(rect=[0, 0, 1, 0.95])
+    for pct_idx, stop_pct in enumerate(STOP_PERCENTS):
+        ax = axes[pct_idx]
 
-    out_path = PLOTS_DIR / "entropy_progression_all.png"
-    fig.savefig(out_path, dpi=180)
+        # Build a matrix: rows=scenarios, cols=mixes
+        data = []
+        for scenario in scenarios:
+            row = []
+            for mixes in mixes_values:
+                key = (mixes, scenario)
+                if key in grouped and stop_pct in grouped[key]:
+                    try:
+                        path = grouped[key][stop_pct]
+                        df = load_entropy_with_time(path)
+                        mean_entropy = df["Entropy"].mean()
+                        row.append(mean_entropy)
+                    except Exception:
+                        row.append(0.0)
+                else:
+                    row.append(0.0)
+            data.append(row)
+
+        # Create heatmap
+        im = ax.imshow(data, cmap="RdYlGn", aspect="auto", vmin=0, vmax=10)
+        ax.set_xticks(range(len(mixes_values)))
+        ax.set_xticklabels(mixes_values)
+        ax.set_yticks(range(len(scenarios)))
+        ax.set_yticklabels(scenarios)
+        ax.set_title(f"Stop {stop_pct}% - Mean Entropy")
+        ax.set_xlabel("Mixes per layer")
+
+        # Add text annotations
+        for i in range(len(scenarios)):
+            for j in range(len(mixes_values)):
+                text = ax.text(j, i, f"{data[i][j]:.2f}", ha="center", va="center", color="black", fontsize=8)
+
+        fig.colorbar(im, ax=ax, label="Mean Entropy")
+
+    fig.tight_layout()
+    out_path = PLOTS_DIR / "entropy_heatmap_vs_stop_percent.png"
+    fig.savefig(out_path, dpi=150)
     print(f"Saved plot: {out_path}")
 
 
