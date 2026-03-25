@@ -68,8 +68,29 @@ class Attacker:
     def checkEndSim(self):  # check to end simulation logic
         # to target-fixed-msgs
         # if self.env.now >= (self.simulation.SimDuration + self.simulation.burnout)and (self.simulation.n_targets == self.n_target_chosen_attacker):
+        
         # to target-all-msgs
+        # if self.env.now >= (self.simulation.SimDuration + self.simulation.burnout):
+        #     if self.simulation.printing:
+        #         print('Simulation duration limit reached')
+        #     self.simulation.endEvent.succeed()  # end simulation if time has expired
+
+        # to target-all-msgs with msg delivery percent
         if self.env.now >= (self.simulation.SimDuration + self.simulation.burnout):
-            if self.simulation.printing:
-                print('Simulation duration limit reached')
-            self.simulation.endEvent.succeed()  # end simulation if time has expired
+            sent_types = self.simulation.Log.sent_messages["MessageType"]
+            recv_types = self.simulation.Log.received_messages["MessageType"]
+
+            real_sent = sum(1 for t in sent_types if t == 'Real')
+            real_received = sum(1 for t in recv_types if t == 'Real')
+
+            if real_sent == 0:
+                return
+
+            required_received = math.ceil(
+                (self.simulation.msg_delivery_percent / 100.0) * real_sent
+            )
+            if real_received >= required_received:
+                if self.simulation.printing:
+                    pct = 100.0 * real_received / real_sent
+                    print(f'End condition reached: {real_received}/{real_sent} real msgs delivered at ({pct:.2f}%)')
+                self.simulation.endEvent.succeed()

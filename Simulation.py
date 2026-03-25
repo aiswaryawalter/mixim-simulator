@@ -19,7 +19,8 @@ class Simulation(object):
     def __init__(self, mix_type, simDuration, rate_client, mu, logging, topology, fully_connected, n_clients,
                  flush_percent, printing, flush_timeout, threshold, routing, n_layers,
                  n_mixes_per_layer, corrupt, unifrom_corruption, probability_dist_mixes, nbr_cascacdes, client_dummies,
-                 rate_client_dummies, link_based_dummies, multiple_hops_dummies, rate_mix_dummies, Network_template, stop_real_msgs_percent):
+                 rate_client_dummies, link_based_dummies, multiple_hops_dummies, rate_mix_dummies, Network_template, 
+                 stop_real_msgs_percent, msg_delivery_percent):
 
         self.Log = Log()
         self.logs = []
@@ -33,6 +34,8 @@ class Simulation(object):
         self.stop_real_msgs_percent = stop_real_msgs_percent
         # Calculate the cutoff time after which no new real messages will be sent
         self.real_msg_cutoff_time = simDuration * (1-self.stop_real_msgs_percent/100)
+        # to wait for certain percent of sent messages to be delivered before stopping the simulation
+        self.msg_delivery_percent = msg_delivery_percent
 
         self.client_dummies = client_dummies
         self.rate_client_dummies = rate_client_dummies
