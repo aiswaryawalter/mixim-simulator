@@ -50,7 +50,9 @@ class Simulation(object):
         self.routing = routing
         self.env = simpy.Environment()
         self.SimDuration = simDuration
-        self.burnout = 10
+        # original: burnout = 10. but it not used anywhere other than in the end simulation logic
+        # self.burnout = 10
+        self.burnout = 0
         self.flush_timeout = flush_timeout
         self.n_targets = 0
         self.MsgsDropped = []
@@ -243,6 +245,7 @@ class Simulation(object):
         df_entropy = pd.DataFrame(dict_entropy)
         df_entropy['MessageID'] = df_received_messages['MessageID'].to_numpy(copy=True)
         df_entropy['TimeLeft'] = df_received_messages['MessageTimeLeft'].to_numpy(copy=True)
+        df_entropy['TimeReceived'] = df_received_messages['MessageTimeReceived'].to_numpy(copy=True)
         df_entropy.to_csv(f'{logDir}{self.n_layers}layers_{self.n_mixes_per_layer}mixes_player_Entropy.csv')
 
         entropy_mean = np.mean(entropy)

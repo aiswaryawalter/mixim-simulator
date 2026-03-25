@@ -1,10 +1,10 @@
 #!/bin/bash
-#SBATCH --job-name=mixim_stop_end_msgs
+#SBATCH --job-name=mixim_arrival_time
 #SBATCH --error=Logs/mixim-%j.err
-#SBATCH --partition=haswell-256
+#SBATCH --partition=cpuidle
 #SBATCH --cpus-per-task=8
-#SBATCH --time=5-00:00:00
-#SBATCH --mem=128G
+#SBATCH --time=10:00:00
+#SBATCH --mem=64G
 
 # Force output to flush immediately
 export PYTHONUNBUFFERED=1
@@ -53,7 +53,7 @@ python3.12 -c "from main import main; print('Import successful')" || {
 }
 
 echo "=== STARTING JOB ==="
-python3.12 plot_entropy_progression.py 2>&1 | tee Logs/mixim-detailed-${SLURM_JOB_ID}.log
+python3.12 multi-run.py 2>&1 | tee Logs/mixim-detailed-${SLURM_JOB_ID}.log
 
 EXIT_CODE=$?
 echo "=== JOB COMPLETED with exit code: $EXIT_CODE ===" 
