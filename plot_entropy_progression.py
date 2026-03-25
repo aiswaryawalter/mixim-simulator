@@ -98,11 +98,11 @@ def main() -> None:
             df = df.dropna(subset=["send_time", "Entropy"]).sort_values("send_time")
 
             # Optional smoothing to make progression easier to see
-            df["EntropySmoothed"] = df["Entropy"].rolling(window=25, min_periods=1).mean()
+            df["EntropySmoothed"] = df["Entropy"].rolling(window=5, min_periods=1).mean()
 
             ax.plot(
                 df["send_time"],
-                df["EntropySmoothed"],
+                df["Entropy"],
                 label=scenario,
                 color=COLORS.get(scenario, None),
                 linewidth=1.8,
