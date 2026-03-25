@@ -1,0 +1,7 @@
+/Logs
+/__*
+/mixim-env
+/venv*
+.DS_Store
+slurm-*
+/files
