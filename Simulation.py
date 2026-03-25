@@ -180,7 +180,23 @@ class Simulation(object):
         if self.printing:
             print('Topology: {}'.format(self.topology))
         if time is None:
-            self.env.run(until=self.endEvent)
+            try:
+                self.env.run(until=self.endEvent)
+            except RuntimeError as e:
+                no_events_left = 'No scheduled events left' in str(e)
+                if no_events_left and not self.endEvent.triggered:
+                    if self.printing:
+                        sent_types = self.Log.sent_messages["MessageType"]
+                        recv_types = self.Log.received_messages["MessageType"]
+
+                        real_sent = sum(1 for t in sent_types if t == 'Real')
+                        real_received = sum(1 for t in recv_types if t == 'Real')
+                        pct = 100.0 * real_received / real_sent
+                        print(f'{real_received}/{real_sent} real msgs delivered at ({pct:.2f}%)')
+            
+                        print(f'[{self.env.now}]No scheduled events left before endEvent; finishing with current logs.')
+                else:
+                    raise
         else:
             self.env.run(until=time)
 
@@ -234,17 +250,17 @@ class Simulation(object):
         for m in range(len(tableProb)):
             row = np.array(tableProb[m], dtype=float)
             row_sum = row.sum()
-            print(f"Row sum for row {m}: {row_sum}")
+            # print(f"Row sum for row {m}: {row_sum}")
 
             if np.isclose(row_sum, 1.0, atol=0.3):
                 row_entropy = 0.0
                 for p in row:
                     if p != 0:
                         row_entropy += -p * np.log2(p)
-                print(f"Entropy of {m}: {row_entropy}")
+                # print(f"Entropy of {m}: {row_entropy}")
                 entropy[m] = row_entropy
             else:
-                print(f"Entropy of {m}: 0.0 (row sum is not 1.0)")
+                # print(f"Entropy of {m}: 0.0 (row sum is not 1.0)")
                 entropy[m] = 0.0 
 
   

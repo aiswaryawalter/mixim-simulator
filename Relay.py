@@ -1,6 +1,6 @@
 link_delay = [0.01, 0.1]
 
-
+import math
 import numpy as np
 
 
@@ -86,7 +86,7 @@ class Attacker:
             if real_sent == 0:
                 return
 
-            required_received = math.ceil(
+            required_received = math.floor(
                 (self.simulation.msg_delivery_percent / 100.0) * real_sent
             )
             if real_received >= required_received:
