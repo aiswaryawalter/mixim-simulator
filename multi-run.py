@@ -15,7 +15,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parent
 CONFIG_PATH = ROOT / "ConfigFile.ini"
 LOGS_DIR = ROOT / "Logs"
-OUT_DIR = ROOT / "files-multi-run"
+OUT_DIR = ROOT / "files"
 
 N_LAYERS = 3
 MIXES_PER_LAYER = [3, 4, 5, 6, 7, 8, 9, 10]
