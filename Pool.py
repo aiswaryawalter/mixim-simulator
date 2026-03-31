@@ -44,7 +44,7 @@ class Pool(Mix):
 
             next_hop_index = message.route[message.next_hop_index]
             self.pool.remove(message)
-            self.env.process(self.simulation.attacker.relay(message, next_hop_index))
+            self.env.process(self.simulation.attacker.relay(message, self, next_hop_index))
 
     def update_probabilities(self, msg):
         if not self.corrupt:

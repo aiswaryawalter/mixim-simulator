@@ -82,7 +82,7 @@ class PoissonMix(Mix):
         self.update_probabilities(msg, len(self.pool))
         next_hop_index = msg.route[msg.next_hop_index]
         self.pool.remove(msg)
-        self.env.process(self.simulation.attacker.relay(msg, next_hop_index))
+        self.env.process(self.simulation.attacker.relay(msg, self, next_hop_index))
 
     def update_probabilities(self, msg, pool_size):
         if not self.corrupt:

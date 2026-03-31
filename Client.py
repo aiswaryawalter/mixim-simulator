@@ -126,7 +126,7 @@ class Client:
             yield self.env.timeout(sending_time)
             message.time_left = self.env.now
             self.log.sent_messages_f(message)
-            self.env.process(self.simulation.attacker.relay(message, message.route[1]))
+            self.env.process(self.simulation.attacker.relay(message, self, message.route[1]))
 
     def receive_ack(self, message):  # Message received
         pass

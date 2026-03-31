@@ -139,6 +139,77 @@ class Simulation(object):
             for client in self.clientsSet:
                 client.otherClients = self.clientsSet - {client}
 
+    def aggregate_link_load(self, df_link_load):
+        """
+        Build per-transition summary (L1->L2, L2->L3, ...)
+        and append one global mix-mix summary row (ALL->ALL).
+        """
+        out_cols = [
+            'FromLayer', 'ToLayer', 'TotalMsgs', 'RealMsgs', 'DummyMsgs',
+            'NumLinks', 'AvgMsgsPerLink', 'AvgRealPerLink', 'AvgDummyPerLink',
+            'RatePerLinkPerTime', 'RateRealPerLinkPerTime', 'RateDummyPerLinkPerTime'
+        ]
+
+        # No traffic logged
+        if df_link_load.empty:
+            return pd.DataFrame(columns=out_cols)
+
+        # Keep only mix->mix hops
+        df_mix = df_link_load[df_link_load['IsMixMix'] == True].copy()
+        if df_mix.empty:
+            return pd.DataFrame(columns=out_cols)
+
+        # Classify message type
+        df_mix['IsReal'] = (df_mix['MessageType'] == 'Real')
+        df_mix['IsDummy'] = (df_mix['MessageType'] != 'Real')  # Dummy + ClientDummy
+
+        # Layerwise transition summary
+        summary = df_mix.groupby(['SenderLayer', 'ReceiverLayer'], as_index=False).agg(
+            TotalMsgs=('MessageID', 'count'),
+            RealMsgs=('IsReal', 'sum'),
+            DummyMsgs=('IsDummy', 'sum')
+        )
+
+        summary = summary.rename(columns={
+            'SenderLayer': 'FromLayer',
+            'ReceiverLayer': 'ToLayer'
+        })
+
+        links_per_transition = self.n_mixes_per_layer ** 2
+        summary['NumLinks'] = links_per_transition
+        summary['AvgMsgsPerLink'] = summary['TotalMsgs'] / summary['NumLinks']
+        summary['AvgRealPerLink'] = summary['RealMsgs'] / summary['NumLinks']
+        summary['AvgDummyPerLink'] = summary['DummyMsgs'] / summary['NumLinks']
+        summary['RatePerLinkPerTime'] = summary['AvgMsgsPerLink'] / self.SimDuration
+        summary['RateRealPerLinkPerTime'] = summary['AvgRealPerLink'] / self.SimDuration
+        summary['RateDummyPerLinkPerTime'] = summary['AvgDummyPerLink'] / self.SimDuration
+
+        # Global mix-mix summary across all transitions
+        total_msgs_all = int(df_mix.shape[0])
+        real_msgs_all = int(df_mix['IsReal'].sum())
+        dummy_msgs_all = int(df_mix['IsDummy'].sum())
+
+        # For stratified fully connected: (L-1) transitions, each has M^2 directed links
+        total_mixmix_links = (self.n_layers - 1) * (self.n_mixes_per_layer ** 2)
+
+        overall_row = pd.DataFrame([{
+            'FromLayer': 'ALL',
+            'ToLayer': 'ALL',
+            'TotalMsgs': total_msgs_all,
+            'RealMsgs': real_msgs_all,
+            'DummyMsgs': dummy_msgs_all,
+            'NumLinks': total_mixmix_links,
+            'AvgMsgsPerLink': total_msgs_all / total_mixmix_links,
+            'AvgRealPerLink': real_msgs_all / total_mixmix_links,
+            'AvgDummyPerLink': dummy_msgs_all / total_mixmix_links,
+            'RatePerLinkPerTime': (total_msgs_all / total_mixmix_links) / self.SimDuration,
+            'RateRealPerLinkPerTime': (real_msgs_all / total_mixmix_links) / self.SimDuration,
+            'RateDummyPerLinkPerTime': (dummy_msgs_all / total_mixmix_links) / self.SimDuration
+
+        }])
+
+        return pd.concat([summary, overall_row], ignore_index=True)
+
     def run(self, time=None):
         # Print statements and results from here
         if self.printing:
@@ -186,11 +257,15 @@ class Simulation(object):
         df_received_messages = pd.DataFrame(self.Log.received_messages)
         df_dummies_messages = pd.DataFrame(self.Log.dummy_messages)
         df_targets = pd.DataFrame(self.Log.target_messages)
+        df_link_load = pd.DataFrame(self.Log.link_load)
+        df_link_summary = self.aggregate_link_load(df_link_load)
 
         if self.logging:
             df_sent_messages.to_csv(f'{logDir}SentMessages.csv')
             df_received_messages.to_csv(f'{logDir}ReceivedMessages.csv')
             df_dummies_messages.to_csv(f'{logDir}DummyMessages.csv')
+            df_link_load.to_csv(f'{logDir}LinkLoad.csv')
+            df_link_summary.to_csv(f'{logDir}LinkSummary.csv')
             df_targets.to_csv(f'{logDir}{self.n_layers}layers_{self.n_mixes_per_layer}mixes_player_Targets.csv', index=False)
         else:
             pass

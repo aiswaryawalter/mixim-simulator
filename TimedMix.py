@@ -36,7 +36,7 @@ class TimedMix(Mix):
             for message in self.pool:
                 self.update_probabilities(message)
                 next_hop_index = message.route[message.next_hop_index]
-                self.env.process(self.simulation.attacker.relay(message, next_hop_index))
+                self.env.process(self.simulation.attacker.relay(message, self, next_hop_index))
 
             self.pool.clear()
 
