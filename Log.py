@@ -5,6 +5,16 @@ class Log:
         self.received_messages = {"MessageID": [], "MessageType": [], "MessageTimeLeft" :[],"MessageTimeReceived":[], "MessageDelay": [], "MessageRoute" :[],"MessageTarget" : [] }
         self.dummy_messages = {"DroppingNode":[],"DummyID": [], "DummyType": [], "DummyTimeLeft" :[], "DummyDelay": [], "DummyRoute" :[], "DummyPr":[]}
         self.target_messages = {"TargetIndex": [], "MessageID": [], "TimeLeft": []}
+        self.link_load = {
+            'Time': [],
+            'MessageID': [],
+            'MessageType': [],  # 'Real', 'Dummy', 'ClientDummy'
+            'SenderID': [],
+            'ReceiverID': [],
+            'SenderLayer': [],
+            'ReceiverLayer': [],
+            'IsMixMix': []
+        }
 
     def dummies_dropped_end_link(self, dummy, dropping_node):
         self.dummy_messages["DroppingNode"].append(dropping_node)
@@ -35,3 +45,18 @@ class Log:
         self.target_messages["TargetIndex"].append(n_target)
         self.target_messages["MessageID"].append(msg_id)
         self.target_messages["TimeLeft"].append(time_left)
+    
+    def log_link_load(self, message, sender, receiver, now):
+        """Log a message traversal across a single hop."""
+        sender_layer = getattr(sender, 'layer', None)  # None for clients
+        receiver_layer = getattr(receiver, 'layer', None)
+        is_mix_mix = (sender_layer is not None) and (receiver_layer is not None)
+        
+        self.link_load['Time'].append(now)
+        self.link_load['MessageID'].append(message.id)
+        self.link_load['MessageType'].append(message.type)
+        self.link_load['SenderID'].append(sender.id)
+        self.link_load['ReceiverID'].append(receiver.id)
+        self.link_load['SenderLayer'].append(sender_layer)
+        self.link_load['ReceiverLayer'].append(receiver_layer)
+        self.link_load['IsMixMix'].append(is_mix_mix)
