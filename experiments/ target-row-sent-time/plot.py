@@ -128,6 +128,7 @@ def main() -> None:
                     df = df.dropna(subset=["send_time", "Entropy"]).sort_values("send_time")
                     df["EntropySmoothed"] = df["Entropy"].rolling(window=25, min_periods=1).mean()
 
+<<<<<<< HEAD:plot_entropy_progression.py
                     ax.plot(
                         df["send_time"],
                         df["EntropySmoothed"],
@@ -144,6 +145,19 @@ def main() -> None:
             ax.set_ylabel("Entropy")
             ax.grid(True, alpha=0.25)
             ax.legend(fontsize=8, loc="best")
+=======
+            # Optional smoothing to make progression easier to see
+            df["EntropySmoothed"] = df["Entropy"].rolling(window=5, min_periods=1).mean()
+
+            ax.plot(
+                df["send_time"],
+                df["Entropy"],
+                label=scenario,
+                color=COLORS.get(scenario, None),
+                linewidth=1.8,
+                alpha=0.95,
+            )
+>>>>>>> origin/avg-link-load:experiments/ target-row-sent-time/plot.py
 
     fig.suptitle("Entropy progression vs. stop_real_msgs_percent", y=0.995, fontsize=14)
     fig.tight_layout()
