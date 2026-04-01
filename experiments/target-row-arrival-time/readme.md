@@ -1,3 +1,17 @@
+
+
+baseline
+client
+link
+multi hop
+
+burnout = 0
+simduration = 20
+
+N_LAYERS = 3
+MIXES_PER_LAYER = [3, 4, 5, 6, 7, 8, 9, 10]
+
+config file 
 [DEFAULT]
 n_clients= 100
 lambda_c = 1
@@ -21,15 +35,12 @@ mu = 1
 timeout = 2
 threshold = 100
 flush_percent = 0.1
-# to stop sending real messages towards the end a certain percentage of the total simulation time
-stop_real_msgs_percent = 10
 [DUMMIES]
 client_dummies = False
 rate_client_dummies = 1
 link_based_dummies = True
 multiple_hop_dummies = False
 rate_mix_dummies = 1
-rho = 10
 [NODES_SELETION]
 #Probability over nodes selection: uniform, specific
 probability = Uniform

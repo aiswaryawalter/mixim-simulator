@@ -53,7 +53,7 @@ python3.12 -c "from main import main; print('Import successful')" || {
 }
 
 echo "=== STARTING JOB ==="
-python3.12 plot_entropy_progression.py 2>&1 | tee Logs/mixim-detailed-${SLURM_JOB_ID}.log
+python3.12 plot.py 2>&1 | tee Logs/mixim-detailed-${SLURM_JOB_ID}.log
 
 EXIT_CODE=$?
 echo "=== JOB COMPLETED with exit code: $EXIT_CODE ===" 

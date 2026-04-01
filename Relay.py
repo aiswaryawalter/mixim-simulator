@@ -15,7 +15,7 @@ class Attacker:
         self.n_targets = n_targets
         self.time_stable = 0.0
 
-    def relay(self, msg, receiver):
+    def relay(self, msg, sender, receiver):
         # Choose target message
         if self.simulation.mix_type == 'pool' and len(
                 self.simulation.numberrounds) > self.simulation.n_mixes_per_layer * self.simulation.n_layers:
@@ -61,6 +61,7 @@ class Attacker:
                 yield self.env.timeout(2)
                 self.var = True
 
+        self.simulation.Log.log_link_load(msg, sender, receiver, self.env.now)
         yield self.env.timeout(0.05)  # 'link' delay
         receiver.receive_message(msg)
         self.checkEndSim()

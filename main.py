@@ -39,15 +39,52 @@ def main(rate):
 
     # Threat Model
     corrupt_mixes = int(config['THREATMODEL']['corrupt_mixes'])
-    balanced_corruption = bool(config['THREATMODEL']['balanced_corruption'])
+    balanced_corruption = config['THREATMODEL'].getboolean('balanced_corruption')
+    # balanced_corruption = bool(config['THREATMODEL']['balanced_corruption'])
 
     #Dummies
     dummies_vars = config['DUMMIES']
     client_dummies = dummies_vars.getboolean('client_dummies')
-    rate_client_dummies = float(dummies_vars['rate_client_dummies'])
+    # remove: rate_client_dummies. computing the rate_client_dummies based on rho
+    # rate_client_dummies = float(dummies_vars['rate_client_dummies'])
     link_dummies = dummies_vars.getboolean('link_based_dummies')
     multiple_hops_dummies = dummies_vars.getboolean('multiple_hop_dummies')
-    rate_mix_dummies =float(dummies_vars['rate_mix_dummies'])
+    # remove: rate_mix_dummies. computing the rate_mix_dummies based on rho
+    # rate_mix_dummies =float(dummies_vars['rate_mix_dummies'])
+
+    # add: compute rate_client_dummies and rate_mix_dummies based on rho
+    rho = float(dummies_vars['rho'])
+    rate_client_dummies = 0.0
+    rate_mix_dummies = 0.0
+
+    M = n_mix_per_layer
+    L = n_layer
+    C = n_clients
+
+    if client_dummies:
+        # lambda_cd = (rho * M^2) / C
+        lambda_cd = (rho * (M ** 2)) / C
+        if lambda_cd <= 0:
+            raise ValueError("lambda_cd must be > 0")
+        rate_client_dummies = 1.0 / lambda_cd
+        print(f"[DUMMIES][CLIENT] rho={rho}, lambda_cd={lambda_cd}, rate_client_dummies={rate_client_dummies}")
+
+    elif link_dummies:
+        # lambda_ld = rho * M
+        lambda_ld = rho * M
+        if lambda_ld <= 0:
+            raise ValueError("lambda_ld must be > 0")
+        rate_mix_dummies = 1.0 / lambda_ld
+        print(f"[DUMMIES][LINK] rho={rho}, lambda_ld={lambda_ld}, rate_mix_dummies={rate_mix_dummies}")
+
+    elif multiple_hops_dummies:
+        # lambda_md = ((L-1) * M * rho) / sum_{r=1}^{L-1}(L-r) = 2*M*rho/L
+        denom = sum((L - r) for r in range(1, L))
+        lambda_md = ((L - 1) * M * rho) / denom
+        if lambda_md <= 0:
+            raise ValueError("lambda_md must be > 0")
+        rate_mix_dummies = 1.0 / lambda_md
+        print(f"[DUMMIES][MULTIHOP] rho={rho}, lambda_md={lambda_md}, rate_mix_dummies={rate_mix_dummies}")
 
 
 
