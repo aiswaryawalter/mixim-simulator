@@ -3,5 +3,5 @@
 /mixim-env
 /venv*
 .DS_Store
-/files
+/files*
 slurm-*
