@@ -1,10 +1,10 @@
 #!/bin/bash
 #SBATCH --job-name=arrivaltime
 #SBATCH --error=Logs/mixim-%j.err
-#SBATCH --partition=haswell-256
+#SBATCH --partition=epyc-256
 #SBATCH --cpus-per-task=2
-#SBATCH --time=10:00:00
-#SBATCH --mem=50G
+#SBATCH --time=05-00:00:00
+#SBATCH --mem=100G
 
 # Force output to flush immediately
 export PYTHONUNBUFFERED=1
@@ -53,7 +53,7 @@ python3.12 -c "from main import main; print('Import successful')" || {
 }
 
 echo "=== STARTING JOB ==="
-python3.12 plot.py 2>&1 | tee Logs/mixim-detailed-${SLURM_JOB_ID}.log
+python3.12 main.py 2>&1 | tee Logs/mixim-detailed-${SLURM_JOB_ID}.log
 
 EXIT_CODE=$?
 echo "=== JOB COMPLETED with exit code: $EXIT_CODE ===" 

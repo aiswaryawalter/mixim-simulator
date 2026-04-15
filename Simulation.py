@@ -264,8 +264,8 @@ class Simulation(object):
             df_sent_messages.to_csv(f'{logDir}SentMessages.csv')
             df_received_messages.to_csv(f'{logDir}ReceivedMessages.csv')
             df_dummies_messages.to_csv(f'{logDir}DummyMessages.csv')
-            df_link_load.to_csv(f'{logDir}LinkLoad.csv')
-            df_link_summary.to_csv(f'{logDir}LinkSummary.csv')
+            df_link_load.to_csv(f'{logDir}{self.n_layers}layers_{self.n_mixes_per_layer}mixes_LinkLoad.csv')
+            df_link_summary.to_csv(f'{logDir}{self.n_layers}layers_{self.n_mixes_per_layer}mixes_LinkSummary.csv')
             df_targets.to_csv(f'{logDir}{self.n_layers}layers_{self.n_mixes_per_layer}mixes_player_Targets.csv', index=False)
         else:
             pass
