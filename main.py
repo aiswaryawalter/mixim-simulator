@@ -34,8 +34,6 @@ def main(rate):
     threshold = int(config['MIXING']['threshold'])
     flush_percent = float(config['MIXING']['flush_percent'])
     timeout = float(config['MIXING']['timeout'])
-    # to stop sending real messages towards the end a certain percentage of the total simulation time
-    stop_real_msgs_percent = float(config['MIXING']['stop_real_msgs_percent'])
     # to wait for certain percent of sent messages to be delivered before stopping the simulation
     msg_delivery_percent = float(config['MIXING']['msg_delivery_percent'])
 
@@ -95,7 +93,6 @@ def main(rate):
                             topology=topology,fully_connected= fully_connected, n_clients=n_clients, flush_percent=flush_percent, printing=True, flush_timeout=timeout, threshold=threshold, routing=routing, n_layers=n_layer,
                             n_mixes_per_layer=n_mix_per_layer,corrupt= corrupt_mixes,unifrom_corruption= balanced_corruption,probability_dist_mixes=weights,nbr_cascacdes = n_cascade, client_dummies=client_dummies,rate_client_dummies = rate_client_dummies, link_based_dummies = link_dummies, multiple_hops_dummies = multiple_hops_dummies,rate_mix_dummies = rate_mix_dummies,
                             Network_template=None,
-                            stop_real_msgs_percent = stop_real_msgs_percent, 
                             msg_delivery_percent = msg_delivery_percent)
 
     now = time.time()

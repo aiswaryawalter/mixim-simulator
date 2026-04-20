@@ -20,7 +20,7 @@ class Simulation(object):
                  flush_percent, printing, flush_timeout, threshold, routing, n_layers,
                  n_mixes_per_layer, corrupt, unifrom_corruption, probability_dist_mixes, nbr_cascacdes, client_dummies,
                  rate_client_dummies, link_based_dummies, multiple_hops_dummies, rate_mix_dummies, Network_template, 
-                 stop_real_msgs_percent, msg_delivery_percent):
+                msg_delivery_percent):
 
         self.Log = Log()
         self.logs = []
@@ -30,10 +30,6 @@ class Simulation(object):
         self.n_cascades = nbr_cascacdes
         self.fully_connected = fully_connected
         self.flush_percent = flush_percent
-        # to stop sending real messages towards the end a certain percentage of the total simulation time
-        self.stop_real_msgs_percent = stop_real_msgs_percent
-        # Calculate the cutoff time after which no new real messages will be sent
-        self.real_msg_cutoff_time = simDuration * (1-self.stop_real_msgs_percent/100)
         # to wait for certain percent of sent messages to be delivered before stopping the simulation
         self.msg_delivery_percent = msg_delivery_percent
 
