@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=mixim-matrix
+#SBATCH --job-name=prep-matrix
 #SBATCH --partition=epyc-256
 #SBATCH --cpus-per-task=1
 #SBATCH --time=00-02:00:00
@@ -13,7 +13,7 @@ export PYTHONUNBUFFERED=1
 ROOT_DIR="/scratch/loq85qob/transition-window"
 cd "$ROOT_DIR"
 
-CAMPAIGN_NAME="campaign01"
+CAMPAIGN_NAME="campaign04"
 CAMPAIGN_DIR="$ROOT_DIR/files/$CAMPAIGN_NAME"
 MATRIX_FILE="$CAMPAIGN_DIR/experiment_matrix.csv"
 

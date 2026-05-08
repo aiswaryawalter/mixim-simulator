@@ -131,6 +131,7 @@ class PoissonMix(Mix):
                 self.Pmix[i] += new_message.pr_target[i]
             new_message.time_left = self.env.now
             self.simulation.Log.sent_messages_f(new_message)
+            self.simulation.register_start_dummy(new_message.type)
             self.pool.append(new_message)
             yield self.env.timeout(exponential(self.rate_mix_dummies))
             dummy_id += 1

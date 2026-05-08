@@ -7,6 +7,7 @@ from Relay import Attacker
 from Log import Log
 from util import XRD_New
 import os
+import json
 
 DEFAULT_TOPOLOGY = 'stratified'
 logDir = 'Logs/'
@@ -20,7 +21,7 @@ class Simulation(object):
                  flush_percent, printing, flush_timeout, threshold, routing, n_layers,
                  n_mixes_per_layer, corrupt, unifrom_corruption, probability_dist_mixes, nbr_cascacdes, client_dummies,
                  rate_client_dummies, link_based_dummies, multiple_hops_dummies, rate_mix_dummies, Network_template, 
-                msg_delivery_percent):
+                msg_delivery_percent, start_dummy_count):
 
         self.Log = Log()
         self.logs = []
@@ -52,6 +53,20 @@ class Simulation(object):
         self.mix_type = mix_type
         self.routing = routing
         self.env = simpy.Environment()
+
+        # feat: warmup dummy
+        self.start_dummy_count = start_dummy_count
+        self.dummy_strategies_enabled = any([
+            self.client_dummies,
+            self.link_based_dummies,
+            self.multiple_hop_dummies,
+        ])
+
+        self.real_send_gate = self.env.event()
+        self.dummy_count = 0
+        if (not self.dummy_strategies_enabled) or self.start_dummy_count <= 0:
+            self.real_send_gate.succeed()
+
         self.SimDuration = simDuration
         # original: burnout = 10. but it not used anywhere other than in the end simulation logic
         # self.burnout = 10
@@ -86,6 +101,16 @@ class Simulation(object):
         self.startAttack = False  # if the attacker is allowed to choose a target message
         self.NumberMsgsDropped = 0
         self.numberrounds = []
+
+    def register_start_dummy(self, msg_type):
+        if self.real_send_gate.triggered:
+            return
+        if msg_type in ('Dummy', 'ClientDummy'):
+            self.dummy_count += 1
+            if self.dummy_count >= self.start_dummy_count:
+                if self.printing:
+                    print(f'Start dummy complete after {self.dummy_count} dummy messages; enabling real traffic.')
+                self.real_send_gate.succeed()
 
     def set_stable_mix(self, index):
         print(f"[{self.env.now}] Entered set_stable_mix for index={index}")
@@ -270,6 +295,9 @@ class Simulation(object):
         if self.printing:
             print('----------Simulation Ended---------')
             print('\n')
+        
+        sim_end_time = float(self.env.now)
+        sim_extra_time = max(0.0, sim_end_time - float(self.SimDuration))
 
         # Data from Clients(senders and receivers)
         df_sent_messages = pd.DataFrame(self.Log.sent_messages)
@@ -283,9 +311,17 @@ class Simulation(object):
             df_sent_messages.to_csv(f'{logDir}SentMessages.csv')
             df_received_messages.to_csv(f'{logDir}ReceivedMessages.csv')
             df_dummies_messages.to_csv(f'{logDir}DummyMessages.csv')
-            df_link_load.to_csv(f'{logDir}LinkLoad.csv')
-            df_link_summary.to_csv(f'{logDir}LinkSummary.csv')
+            df_link_load.to_csv(f'{logDir}{self.n_layers}layers_{self.n_mixes_per_layer}mixes_LinkLoad.csv')
+            df_link_summary.to_csv(f'{logDir}{self.n_layers}layers_{self.n_mixes_per_layer}mixes_LinkSummary.csv')
             df_targets.to_csv(f'{logDir}{self.n_layers}layers_{self.n_mixes_per_layer}mixes_player_Targets.csv', index=False)
+            run_meta = {
+            "sim_duration_config": float(self.SimDuration),
+            "sim_end_time": sim_end_time,
+            "sim_extra_time": sim_extra_time,
+            "msg_delivery_percent": float(self.msg_delivery_percent),
+            }
+            with open(f"{logDir}{self.n_layers}layers_{self.n_mixes_per_layer}mixes_RunMeta.json", "w") as f:
+                json.dump(run_meta, f, indent=2, sort_keys=True)
         else:
             pass
 

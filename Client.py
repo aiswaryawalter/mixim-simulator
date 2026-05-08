@@ -113,7 +113,8 @@ class Client:
             # Log ClientDummy when it reaches destination
             self.log.dummies_dropped_end_link(message, self.id)
             print(f'ClientDummy {message.id} dropped at destination Client {self.id} at time {self.env.now}')
-        self.log.received_messages_f(message)
+        if message.type == 'Real':
+            self.log.received_messages_f(message)
         if message.target_bool and self.simulation.printing:
             print(f'Target message arrived at destination Client at time {self.env.now}')
         if message.type == 'Real' or message.type == 'ClientDummy':
@@ -121,11 +122,20 @@ class Client:
 
 
     def send_message(self, message_type, rate_client):
+        if message_type == 'Real' and not self.simulation.real_send_gate.triggered:
+            if self.simulation.printing:
+                print(f'Client {self.id} waiting for start dummy before sending real messages.')
+            yield self.simulation.real_send_gate
         while True:
             message, sending_time = self.create_message(message_type, rate_client)
             yield self.env.timeout(sending_time)
+            # Stop injecting real messages after SimDuration so the transition window
+            # (msg_delivery_percent drain phase) has no new real traffic — enabling entropy dip
+            if message_type == 'Real' and self.env.now >= self.simulation.SimDuration:
+                break
             message.time_left = self.env.now
             self.log.sent_messages_f(message)
+            self.simulation.register_start_dummy(message.type)
             self.env.process(self.simulation.attacker.relay(message, self, message.route[1]))
 
     def receive_ack(self, message):  # Message received

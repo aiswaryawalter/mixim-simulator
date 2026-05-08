@@ -52,6 +52,10 @@ def main(rate):
     # remove: rate_mix_dummies. computing the rate_mix_dummies based on rho
     # rate_mix_dummies =float(dummies_vars['rate_mix_dummies'])
 
+    # the number of dummy messages to send during the start of the simulation
+    start_dummy_count = dummies_vars.getint('start_dummy_count', fallback=100)
+
+
     # add: compute rate_client_dummies and rate_mix_dummies based on rho
     rho = float(dummies_vars['rho'])
     rate_client_dummies = 0.0
@@ -93,7 +97,9 @@ def main(rate):
                             topology=topology,fully_connected= fully_connected, n_clients=n_clients, flush_percent=flush_percent, printing=True, flush_timeout=timeout, threshold=threshold, routing=routing, n_layers=n_layer,
                             n_mixes_per_layer=n_mix_per_layer,corrupt= corrupt_mixes,unifrom_corruption= balanced_corruption,probability_dist_mixes=weights,nbr_cascacdes = n_cascade, client_dummies=client_dummies,rate_client_dummies = rate_client_dummies, link_based_dummies = link_dummies, multiple_hops_dummies = multiple_hops_dummies,rate_mix_dummies = rate_mix_dummies,
                             Network_template=None,
-                            msg_delivery_percent = msg_delivery_percent)
+                            msg_delivery_percent = msg_delivery_percent,
+                            start_dummy_count=start_dummy_count
+                            )
 
     now = time.time()
     entropy, entropy_mean, entropy_median , entropy_q25= simulation.run()

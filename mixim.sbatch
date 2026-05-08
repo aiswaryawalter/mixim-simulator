@@ -1,10 +1,10 @@
 #!/bin/bash
-#SBATCH --job-name=mixim-experiments
-#SBATCH --partition=epyc-256
+#SBATCH --job-name=camp04
+#SBATCH --partition=skylake-96
 #SBATCH --cpus-per-task=2
 #SBATCH --time=05-00:00:00
-#SBATCH --mem=200G
-#SBATCH --array=1-216%16
+#SBATCH --mem=30G
+#SBATCH --array=1-144
 #SBATCH --output=Logs/mixim-%A_%a.out
 #SBATCH --error=Logs/mixim-%A_%a.err
 
@@ -14,7 +14,7 @@ export PYTHONUNBUFFERED=1
 ROOT_DIR="/scratch/loq85qob/transition-window"
 cd "$ROOT_DIR"
 
-CAMPAIGN_NAME="campaign01"
+CAMPAIGN_NAME="campaign04"
 CAMPAIGN_DIR="$ROOT_DIR/files/$CAMPAIGN_NAME"
 MATRIX_FILE="$CAMPAIGN_DIR/experiment_matrix.csv"
 REPEATS=10
@@ -58,7 +58,7 @@ if [ "${SLURM_ARRAY_TASK_ID}" -gt "$TOTAL_COMBOS" ]; then
     exit 0
 fi
 
-TASK_BASE="${SLURM_TMPDIR:-/tmp}"
+TASK_BASE="${SLURM_TMPDIR:-/scratch/$USER/mixim-experiments}"
 TASK_DIR="$TASK_BASE/mixim_${SLURM_JOB_ID}_${SLURM_ARRAY_TASK_ID}"
 TASK_PROJECT="$TASK_DIR/project"
 LOCAL_CAMPAIGN_DIR="$TASK_PROJECT/files/$CAMPAIGN_NAME"

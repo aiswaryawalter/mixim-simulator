@@ -13,6 +13,9 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 import pandas as pd
 from pandas.errors import EmptyDataError, ParserError
 
@@ -30,8 +33,8 @@ DEFAULT_BIN_SIZE = 0.5
 
 CORRUPT_MIXES = [0, 3, 6]
 E2E_VALUES = [1, 3, 5]
-START_DUMMY_COUNTS = [0, 100, 200]
-MSG_DELIVERY_PERCENTS = [90, 80]
+START_DUMMY_COUNTS = [0]
+MSG_DELIVERY_PERCENTS = [80, 90, 95, 99]
 RHO = 2.0
 
 SCENARIOS = {
@@ -69,6 +72,16 @@ def safe_read_csv(path: Path, required: set[str] | None = None) -> pd.DataFrame:
         return pd.DataFrame()
 
     return df
+
+def safe_read_json(path: Path) -> dict:
+    try:
+        with path.open("r") as f:
+            data = json.load(f)
+        if isinstance(data, dict):
+            return data
+    except (FileNotFoundError, PermissionError, OSError, json.JSONDecodeError) as exc:
+        print(f"WARNING: could not read JSON {path}: {exc}")
+    return {}
 
 def bool_str(v: bool) -> str:
     return "True" if v else "False"
@@ -168,7 +181,7 @@ def write_experiment_matrix(campaign_dir: Path) -> Path:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Run one experiment combo or export the full experiment matrix."
+        description="Run one experiment combo, export the experiment matrix, or plot results."
     )
     parser.add_argument("--combo-id", type=int, default=None)
     parser.add_argument("--repeats", type=int, default=DEFAULT_REPEATS)
@@ -179,10 +192,21 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Write experiment_matrix.csv and exit.",
     )
+    parser.add_argument(
+        "--plot-only",
+        action="store_true",
+        help="Generate transition-window entropy plots from finished combo outputs.",
+    )
+    parser.add_argument("--filter-corrupt", type=int, default=0,
+                        help="Filter combos by corrupt_mixes (default 0).")
+    parser.add_argument("--filter-e2e", type=int, default=1,
+                        help="Filter combos by E2E (default 1).")
+    parser.add_argument("--filter-start-dummy", type=int, default=0,
+                        help="Filter combos by start_dummy_count (default 0).")
     args = parser.parse_args()
 
-    if not args.write_matrix and args.combo_id is None:
-        parser.error("--combo-id is required unless --write-matrix is set")
+    if not args.write_matrix and not args.plot_only and args.combo_id is None:
+        parser.error("--combo-id is required unless --write-matrix or --plot-only is set")
 
     if args.repeats <= 0:
         parser.error("--repeats must be > 0")
@@ -245,6 +269,7 @@ def snapshot_outputs(combo_dir: Path, repeat_idx: int) -> dict[str, str]:
     dummy_src = LOGS_DIR / "DummyMessages.csv"
     link_load_src = LOGS_DIR / f"{N_LAYERS}layers_{MIXES_PER_LAYER}mixes_LinkLoad.csv"
     link_summary_src = LOGS_DIR / f"{N_LAYERS}layers_{MIXES_PER_LAYER}mixes_LinkSummary.csv"
+    run_meta_src = LOGS_DIR / f"{N_LAYERS}layers_{MIXES_PER_LAYER}mixes_RunMeta.json"
 
 
     entropy_dst = run_dir / "Entropy.csv"
@@ -254,6 +279,7 @@ def snapshot_outputs(combo_dir: Path, repeat_idx: int) -> dict[str, str]:
     dummy_dst = run_dir / "DummyMessages.csv"
     link_load_dst = run_dir / "LinkLoad.csv"
     link_summary_dst = run_dir / "LinkSummary.csv"
+    run_meta_dst = run_dir / "RunMeta.json"
 
     copy_if_exists(entropy_src, entropy_dst)
     copy_if_exists(targets_src, targets_dst)
@@ -262,6 +288,7 @@ def snapshot_outputs(combo_dir: Path, repeat_idx: int) -> dict[str, str]:
     copy_if_exists(dummy_src, dummy_dst)
     copy_if_exists(link_load_src, link_load_dst)
     copy_if_exists(link_summary_src, link_summary_dst)
+    copy_if_exists(run_meta_src, run_meta_dst)
 
     return {
         "entropy": str(entropy_dst) if entropy_dst.exists() else "",
@@ -271,6 +298,7 @@ def snapshot_outputs(combo_dir: Path, repeat_idx: int) -> dict[str, str]:
         "dummy": str(dummy_dst) if dummy_dst.exists() else "",
         "link_load": str(link_load_dst) if link_load_dst.exists() else "",
         "link_summary": str(link_summary_dst) if link_summary_dst.exists() else "",
+        "run_meta": str(run_meta_dst) if run_meta_dst.exists() else "",
     }
 
 def build_run_entropy_bins(entropy_csv: Path, bin_size: float) -> pd.DataFrame:
@@ -317,6 +345,10 @@ def compute_run_metrics(outputs: dict[str, str]) -> dict[str, str]:
     dummy_breakdown: dict[str, int] = {}
     mean_entropy = 0.0
 
+    sim_duration_config = 0.0
+    sim_end_time = 0.0
+    sim_extra_time = 0.0
+
     link_total_msgs = 0
     link_real_msgs = 0
     link_dummy_msgs = 0
@@ -354,6 +386,12 @@ def compute_run_metrics(outputs: dict[str, str]) -> dict[str, str]:
         if not df_entropy.empty and "Entropy" in df_entropy.columns:
             mean_entropy = float(df_entropy["Entropy"].mean())
 
+    if outputs.get("run_meta"):
+        run_meta = safe_read_json(Path(outputs["run_meta"]))
+        sim_duration_config = float(run_meta.get("sim_duration_config", 0.0))
+        sim_end_time = float(run_meta.get("sim_end_time", 0.0))
+        sim_extra_time = float(run_meta.get("sim_extra_time", 0.0))
+
     if outputs.get("link_summary"):
         df_link_summary = safe_read_csv(outputs["link_summary"])
         if not df_link_summary.empty:
@@ -380,6 +418,9 @@ def compute_run_metrics(outputs: dict[str, str]) -> dict[str, str]:
         "dummy_msgs_total": str(dummy_count),
         "dummy_types_breakdown": json.dumps(dummy_breakdown, sort_keys=True),
         "mean_entropy": f"{mean_entropy:.8f}",
+        "sim_duration_config": f"{sim_duration_config:.8f}",
+        "sim_end_time": f"{sim_end_time:.8f}",
+        "sim_extra_time": f"{sim_extra_time:.8f}",
         "link_total_msgs": str(link_total_msgs),
         "link_real_msgs": str(link_real_msgs),
         "link_dummy_msgs": str(link_dummy_msgs),
@@ -435,12 +476,121 @@ def aggregate_entropy_bins_from_run_bins(run_bin_paths: list[Path]) -> pd.DataFr
     agg["std_entropy"] = agg["std_entropy"].fillna(0.0)
     return agg
 
+SIM_DURATION = 20  # time at which clients stop sending real messages
+
+DELIVERY_COLORS = {80: "#1f77b4", 90: "#ff7f0e", 95: "#2ca02c", 99: "#d62728"}
+SCENARIO_LABELS = {
+    "baseline": "No dummies",
+    "client_dummies": "Client dummies",
+    "link_based_dummies": "Link-based dummies",
+    "multiple_hop_dummies": "Multi-hop dummies",
+}
+
+
+def plot_transition_window(
+    campaign_dir: Path,
+    out_path: Path,
+    filter_corrupt: int = 0,
+    filter_e2e: int = 1,
+    filter_start_dummy: int = 0,
+) -> None:
+    records: list[pd.DataFrame] = []
+    for combo_dir in sorted(campaign_dir.glob("combo_*")):
+        meta_path = combo_dir / "combo_meta.json"
+        ensemble_path = combo_dir / "ensemble_entropy_bin_0p5.csv"
+        if not meta_path.exists() or not ensemble_path.exists():
+            continue
+        meta = safe_read_json(meta_path)
+        if (
+            int(meta.get("corrupt_mixes", -1)) != filter_corrupt
+            or int(meta.get("E2E", -1)) != filter_e2e
+            or int(meta.get("start_dummy_count", -1)) != filter_start_dummy
+        ):
+            continue
+        df = safe_read_csv(ensemble_path)
+        if df.empty:
+            continue
+        df["scenario"] = meta["scenario"]
+        df["msg_delivery_percent"] = int(meta["msg_delivery_percent"])
+        records.append(df)
+
+    if not records:
+        print(
+            f"No ensemble data found for corrupt={filter_corrupt}, "
+            f"E2E={filter_e2e}, start_dummy={filter_start_dummy}."
+        )
+        return
+
+    data = pd.concat(records, ignore_index=True)
+
+    fig, axes = plt.subplots(2, 2, figsize=(14, 10), sharey=True)
+    axes_flat = axes.flatten()
+
+    for ax, (scenario_key, scenario_label) in zip(axes_flat, SCENARIO_LABELS.items()):
+        sub = data[data["scenario"] == scenario_key]
+        for pct in sorted(DELIVERY_COLORS):
+            rows = sub[sub["msg_delivery_percent"] == pct].sort_values("time_bin_start")
+            if rows.empty:
+                continue
+            color = DELIVERY_COLORS[pct]
+            ax.plot(
+                rows["time_bin_start"],
+                rows["avg_entropy"],
+                color=color,
+                linewidth=1.5,
+                label=f"{pct}% delivered",
+            )
+            ax.fill_between(
+                rows["time_bin_start"],
+                rows["avg_entropy"] - rows["std_entropy"],
+                rows["avg_entropy"] + rows["std_entropy"],
+                alpha=0.15,
+                color=color,
+            )
+        ax.axvline(
+            x=SIM_DURATION,
+            color="black",
+            linestyle="--",
+            linewidth=1.0,
+            label=f"Stop real msgs (t={SIM_DURATION})",
+        )
+        ax.set_title(scenario_label)
+        ax.set_xlabel("Arrival Time")
+        ax.set_ylabel("Entropy (bits)")
+        ax.legend(fontsize=8)
+        ax.grid(True, linestyle="--", alpha=0.4)
+
+    fig.suptitle(
+        f"Entropy vs Arrival Time — Transition Window\n"
+        f"(corrupt={filter_corrupt}, E2E={filter_e2e}, start_dummy={filter_start_dummy})",
+        fontsize=12,
+    )
+    fig.tight_layout()
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path, dpi=150)
+    print(f"Saved plot: {out_path}")
+
+
 def main() -> None:
     args = parse_args()
 
     if args.write_matrix:
         matrix_path = write_experiment_matrix(args.campaign_dir)
         print(f"Saved experiment matrix: {matrix_path}")
+        return
+
+    if args.plot_only:
+        out_path = args.campaign_dir / (
+            f"transition_window_c{args.filter_corrupt}"
+            f"_e{args.filter_e2e}_sd{args.filter_start_dummy}.png"
+        )
+        plot_transition_window(
+            args.campaign_dir,
+            out_path,
+            filter_corrupt=args.filter_corrupt,
+            filter_e2e=args.filter_e2e,
+            filter_start_dummy=args.filter_start_dummy,
+        )
         return
 
     campaign_dir = args.campaign_dir
@@ -467,7 +617,7 @@ def main() -> None:
                 f"combo_id={combo['combo_id']}, scenario={combo['scenario']}, "
                 f"corrupt_mixes={combo['corrupt_mixes']}, E2E={combo['E2E']}, "
                 f"start_dummy_count={combo['start_dummy_count']}, "
-                f"msg_delivery_percent={combo['msg_delivery_percent']}"
+                f"msg_delivery_percent={combo['msg_delivery_percent']}, "
             )
 
             run_main()
@@ -560,6 +710,10 @@ def main() -> None:
         "avg_real_sent_msgs": float(summary_df["real_sent_msgs"].astype(float).mean()),
         "avg_real_received_msgs": float(summary_df["real_received_msgs"].astype(float).mean()),
         "avg_dummy_msgs": float(summary_df["dummy_msgs_total"].astype(float).mean()),
+        "avg_sim_end_time": float(summary_df["sim_end_time"].astype(float).mean()),
+        "avg_sim_extra_time": float(summary_df["sim_extra_time"].astype(float).mean()),
+        "max_sim_end_time": float(summary_df["sim_end_time"].astype(float).max()),
+        "max_sim_extra_time": float(summary_df["sim_extra_time"].astype(float).max()),
         "avg_link_total_msgs": float(summary_df["link_total_msgs"].astype(float).mean()),
         "avg_link_real_msgs": float(summary_df["link_real_msgs"].astype(float).mean()),
         "avg_link_dummy_msgs": float(summary_df["link_dummy_msgs"].astype(float).mean()),

@@ -29,23 +29,16 @@ class Attacker:
             #     for i in range(0, self.n_targets):
             #         if i == self.n_target_chosen_attacker:
             if self.n_target_chosen_attacker < len(self.simulation.Log.sent_messages["MessageID"]):
-                print(f"[TARGET] ID: {msg.id} | n_target_chosen_attacker = {self.n_target_chosen_attacker} | total_messages = {len(self.simulation.Log.sent_messages['MessageID'])}")
-                total_messages = len(self.simulation.Log.sent_messages["MessageID"])
-                while len(msg.pr_target) < total_messages:
-                    msg.pr_target.append(0.0)
-                for i in range(total_messages):
-                    if i == total_messages-1:
-                        print(f"[TARGET] ID: {msg.id} | i= {i} | n_target_chosen_attacker = {self.n_target_chosen_attacker} | total_messages-1 = {total_messages-1}")
-                        msg.pr_target[i] = float(1.0)
-                    else:
-                        msg.pr_target[i] = float(0.0)
+                sent_ids      = self.simulation.Log.sent_messages["MessageID"]
+                own_index     = sent_ids.index(msg.id)  # ID lookup — immune to SimPy scheduling races
+                total_messages = len(sent_ids)
+                msg.pr_target = [0.0] * total_messages
+                msg.pr_target[own_index] = float(1.0)
                 msg.target_bool = True
                 self.targetMessage = msg
-                print(f"[TARGET] {msg.id} n_target_chosen_attacker={self.n_target_chosen_attacker}")
-                print(f"[TARGET][{msg.id}] {msg.target_bool}: {msg.pr_target}")
-                # Log target information
+                print(f"[TARGET] {msg.id} own_index={own_index} / {total_messages}")
                 self.simulation.Log.log_target(
-                    n_target= total_messages-1,
+                    n_target=own_index,
                     msg_id=msg.id,
                     time_left=msg.time_left,
                 )
