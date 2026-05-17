@@ -113,7 +113,8 @@ class Client:
             # Log ClientDummy when it reaches destination
             self.log.dummies_dropped_end_link(message, self.id)
             print(f'ClientDummy {message.id} dropped at destination Client {self.id} at time {self.env.now}')
-        self.log.received_messages_f(message)
+        if message.type == 'Real':
+            self.log.received_messages_f(message)
         if message.target_bool and self.simulation.printing:
             print(f'Target message arrived at destination Client at time {self.env.now}')
         if message.type == 'Real' or message.type == 'ClientDummy':

@@ -255,6 +255,7 @@ class Simulation(object):
         # Data from Clients(senders and receivers)
         df_sent_messages = pd.DataFrame(self.Log.sent_messages)
         df_received_messages = pd.DataFrame(self.Log.received_messages)
+        df_received_messages = df_received_messages[df_received_messages['MessageType'] == 'Real'].reset_index(drop=True)
         df_dummies_messages = pd.DataFrame(self.Log.dummy_messages)
         df_targets = pd.DataFrame(self.Log.target_messages)
         df_link_load = pd.DataFrame(self.Log.link_load)
