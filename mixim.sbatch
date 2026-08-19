@@ -1,16 +1,19 @@
 #!/bin/bash
-#SBATCH --job-name=arrivaltime
+#SBATCH --job-name=corrupt
+#SBATCH --output=Logs/mixim-%j.out
 #SBATCH --error=Logs/mixim-%j.err
 #SBATCH --partition=epyc-256
 #SBATCH --cpus-per-task=2
-#SBATCH --time=05-00:00:00
-#SBATCH --mem=100G
+#SBATCH --time=8:00:00
+#SBATCH --mem=50G
 
 # Force output to flush immediately
 export PYTHONUNBUFFERED=1
 
-# Exit on any error and log it
+# Exit on any error and log it. pipefail so a crash in the payload below is not
+# masked by tee's exit status.
 set -e
+set -o pipefail
 
 # Add system monitoring
 echo "=== STARTING SBATCH SCRIPT ==="
@@ -27,7 +30,10 @@ echo "Python loaded successfully"
 mkdir -p Logs
 
 echo "Creating Python virtual environment..."
-python3.12 -m venv venv_mixim || { echo "ERROR: venv creation failed"; exit 1; }
+# --clear is required: a venv left over from an older python module points at an
+# interpreter path that no longer exists, and plain `venv` cannot replace the
+# dangling bin/python3.12 symlink (fails with Errno 2).
+python3.12 -m venv --clear venv_mixim || { echo "ERROR: venv creation failed"; exit 1; }
 
 echo "Activating virtual environment..."
 source venv_mixim/bin/activate || { echo "ERROR: venv activation failed"; exit 1; }
